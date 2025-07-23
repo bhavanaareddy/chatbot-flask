@@ -7,7 +7,6 @@ import openai
 # Load environment variables
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
-client = openai.OpenAI()
 
 app = Flask(__name__)
 
@@ -33,16 +32,17 @@ def home():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    user_message = request.form['message']
+    data = request.get_json()
+    user_message = data.get('message', '')
 
     try:
-        chat_completion = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": user_message}]
         )
-        reply = chat_completion.choices[0].message.content.strip()
+        reply = response.choices[0].message["content"].strip()
 
-        # Log to DB
+        # Save to DB
         conn = sqlite3.connect('chat.db')
         c = conn.cursor()
         c.execute("INSERT INTO messages (user_message, bot_reply) VALUES (?, ?)", (user_message, reply))
@@ -54,4 +54,4 @@ def chat():
         return jsonify({'reply': f"Error: {str(e)}"})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
